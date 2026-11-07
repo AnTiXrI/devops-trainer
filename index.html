@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevOps Trainer — карточки для повторения</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="#" id="brandLink">DevOps Trainer</a>
+      <button class="btn btn--ghost" id="btnTheme" type="button" aria-pressed="true">Тема: тёмная</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <p class="alert" id="alertBox" role="status" hidden></p>
+
+    <!-- ЭКРАН: МЕНЮ -->
+    <section class="screen" id="screen-menu">
+      <div class="screen__head">
+        <h1>Тренажёр</h1>
+        <p class="muted" id="menuSummary">Загрузка…</p>
+      </div>
+
+      <!-- ПОВТОРЯТЬ -->
+      <section class="panel panel--review" aria-labelledby="reviewHeading">
+        <header class="panel__head">
+          <h2 id="reviewHeading">Повторять</h2>
+          <p class="muted" id="reviewSummary">На сегодня: 0</p>
+        </header>
+        <p class="panel__note">
+          Только запланированные карточки. Сначала вспоминаете сами, варианты — как подсказка.
+          Интервалы меняет только этот режим.
+        </p>
+        <div class="toolbar">
+          <button class="btn btn--primary" id="btnDue" type="button">Повторять — 0</button>
+        </div>
+        <p class="menu-hint" id="dueHint" hidden></p>
+      </section>
+
+      <!-- УЧИТЬ -->
+      <section class="panel panel--learn" aria-labelledby="learnHeading">
+        <header class="panel__head">
+          <h2 id="learnHeading">Учить</h2>
+          <p class="muted">Бесконечные круги по выбранным разделам. Расписание не меняется.</p>
+        </header>
+
+        <div class="menu-controls">
+          <div class="mode-switch" role="group" aria-label="Способ ответа">
+            <button class="mode-switch__btn" id="modeQuiz" type="button" aria-pressed="true">Тест с вариантами</button>
+            <button class="mode-switch__btn" id="modeRecall" type="button" aria-pressed="false">Вспомнить самостоятельно</button>
+          </div>
+
+          <label class="toggle">
+            <input type="checkbox" id="toggleReview">
+            <span id="toggleReviewLabel">Включить карточки на проверке</span>
+          </label>
+        </div>
+
+        <div class="toolbar">
+          <button class="btn" id="btnNew" type="button">Новые — 0</button>
+          <button class="btn" id="btnErrors" type="button">Отработать ошибки — 0</button>
+          <button class="btn btn--ghost" id="btnDismissErrors" type="button">Очистить список ошибок</button>
+          <button class="btn" id="btnStats" type="button">Статистика</button>
+        </div>
+
+        <ul class="sections" id="sectionsList"></ul>
+        <p class="empty" id="menuEmpty" hidden>Карточек пока нет. Добавьте первую или импортируйте JSON.</p>
+      </section>
+
+      <!-- ДАННЫЕ -->
+      <details class="data-panel" id="dataPanel">
+        <summary>Данные: карточки, импорт, резервная копия</summary>
+        <div class="toolbar">
+          <button class="btn" id="btnAddCard" type="button">Добавить карточку</button>
+          <button class="btn" id="btnImport" type="button">Импорт карточек</button>
+          <button class="btn" id="btnExport" type="button">Экспорт карточек</button>
+          <button class="btn" id="btnBackup" type="button">Резервная копия</button>
+          <button class="btn" id="btnRestore" type="button">Восстановить копию</button>
+        </div>
+        <p class="panel__note">
+          Ошибки — исторический список: успешный ответ не убирает карточку автоматически.
+          Кнопка «Очистить список ошибок» убирает только список; статистика и расписание остаются.
+        </p>
+        <input type="file" id="importInput" accept=".json,application/json" hidden>
+        <input type="file" id="backupInput" accept=".json,application/json" hidden>
+      </details>
+    </section>
+
+    <!-- ЭКРАН: КАРТОЧКА -->
+    <section class="screen" id="screen-quiz" hidden>
+      <div class="quiz__head">
+        <button class="btn btn--ghost" id="btnBackToMenu" type="button">← В главное меню</button>
+        <span class="muted" id="quizCounter"></span>
+        <span class="quiz__mode" id="quizMode"></span>
+      </div>
+
+      <div class="progress" id="quizProgress" aria-hidden="true">
+        <div class="progress__bar" id="quizProgressBar"></div>
+      </div>
+
+      <article class="card">
+        <p class="card__section" id="cardSection"></p>
+        <p class="card-notice" id="reviewBanner" hidden></p>
+        <h2 class="card__question" id="cardQuestion"></h2>
+
+        <div class="recall" id="recallBox" hidden>
+          <label class="field">
+            <span class="field__label">Мой ответ (необязательно) — вслух, письменно или мысленно</span>
+            <textarea class="field__input" id="recallInput" rows="2"></textarea>
+          </label>
+          <div class="quiz__actions">
+            <button class="btn" id="btnHint" type="button">Показать варианты — подсказка</button>
+            <button class="btn btn--primary" id="btnReveal" type="button">Показать ответ — самопроверка</button>
+          </div>
+        </div>
+
+        <ul class="options" id="optionsList"></ul>
+
+        <div class="reveal" id="revealBox" hidden>
+          <p class="reveal__answer" id="revealAnswer"></p>
+          <p class="reveal__explain" id="revealExplain"></p>
+          <p class="reveal__note">Это самооценка: приложение не проверяет смысл вашего ответа и не сравнивает текст с эталоном.</p>
+          <div class="quiz__actions">
+            <button class="btn btn--danger" id="btnAssessFailed" type="button">Не вспомнил / ответил неверно</button>
+            <button class="btn btn--primary" id="btnAssessIndependent" type="button">Вспомнил самостоятельно</button>
+          </div>
+          <p class="reveal__verdict" id="revealVerdict" hidden></p>
+        </div>
+
+        <div class="feedback" id="feedbackBox" hidden aria-live="polite">
+          <p class="feedback__verdict" id="feedbackVerdict"></p>
+          <p class="feedback__explain" id="feedbackExplain"></p>
+          <p class="feedback__meta" id="feedbackMeta"></p>
+        </div>
+      </article>
+
+      <div class="quiz__actions">
+        <button class="btn btn--primary" id="btnNext" type="button" hidden>Следующая карточка →</button>
+        <button class="btn" id="btnFinish" type="button" hidden>Закончить тренировку</button>
+        <button class="btn" id="btnQuizToMenu" type="button">В главное меню</button>
+      </div>
+    </section>
+
+    <!-- ЭКРАН: ИТОГИ -->
+    <section class="screen" id="screen-summary" hidden>
+      <div class="screen__head">
+        <h1 id="summaryTitle">Сессия завершена</h1>
+        <p class="muted" id="summarySubtitle"></p>
+      </div>
+
+      <div class="stats" id="summaryStats"></div>
+
+      <div class="toolbar">
+        <button class="btn btn--primary" id="btnSummaryPrimary" type="button">Ещё круг</button>
+        <button class="btn" id="btnSummarySecondary" type="button" hidden>Отработать ошибки</button>
+        <button class="btn" id="btnSummaryMenu" type="button">В главное меню</button>
+      </div>
+    </section>
+
+    <!-- ЭКРАН: СТАТИСТИКА -->
+    <section class="screen" id="screen-stats" hidden>
+      <div class="screen__head">
+        <h1>Статистика</h1>
+        <p class="muted">Тренировка, повторения и старая история считаются раздельно.</p>
+      </div>
+
+      <div class="stats" id="statsTotals"></div>
+      <div class="table-wrap">
+        <table class="stats-table" id="statsTable"></table>
+      </div>
+
+      <p class="legend">«С вариантами» — ответ, при котором были видны варианты: тест с вариантами или подсказка. Самооценка «Не вспомнил» считается ошибкой.</p>
+      <p class="legend">Старая общая история собиралась до разделения режимов: тренировки и повторения в ней не различались, поэтому она не переносится в новые слои.</p>
+
+      <div class="toolbar">
+        <button class="btn" id="btnStatsBack" type="button">В главное меню</button>
+      </div>
+    </section>
+
+    <!-- ЭКРАН: ДОБАВЛЕНИЕ КАРТОЧКИ -->
+    <section class="screen" id="screen-add" hidden>
+      <div class="screen__head">
+        <h1>Новая карточка</h1>
+        <p class="muted">Карточка сохранится в браузере и попадёт в общий набор. Файл data/cards.json не меняется.</p>
+      </div>
+
+      <form class="form" id="addForm" novalidate>
+        <div class="form__row">
+          <label class="field">
+            <span class="field__label">Раздел</span>
+            <input class="field__input" id="fieldSection" list="sectionOptions" required placeholder="Например: Kubernetes">
+            <datalist id="sectionOptions"></datalist>
+          </label>
+          <label class="field">
+            <span class="field__label">Тема</span>
+            <input class="field__input" id="fieldTopic" required placeholder="Например: Pods и Deployments">
+          </label>
+        </div>
+
+        <div class="form__row">
+          <label class="field">
+            <span class="field__label">Сложность</span>
+            <select class="field__input" id="fieldDifficulty">
+              <option value="easy">easy</option>
+              <option value="medium" selected>medium</option>
+              <option value="hard">hard</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Теги (через запятую)</span>
+            <input class="field__input" id="fieldTags" placeholder="kubectl, pods">
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Вопрос</span>
+          <textarea class="field__input" id="fieldQuestion" rows="2" required placeholder="Что делает команда kubectl get pods -A?"></textarea>
+        </label>
+
+        <div class="options-grid" id="optionFields">
+          <label class="field">
+            <span class="field__label">Вариант 1</span>
+            <input class="field__input option-input" data-option="0" required>
+          </label>
+          <label class="field">
+            <span class="field__label">Вариант 2</span>
+            <input class="field__input option-input" data-option="1" required>
+          </label>
+          <label class="field">
+            <span class="field__label">Вариант 3</span>
+            <input class="field__input option-input" data-option="2" required>
+          </label>
+          <label class="field">
+            <span class="field__label">Вариант 4</span>
+            <input class="field__input option-input" data-option="3" required>
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Правильный вариант</span>
+          <select class="field__input" id="fieldCorrect">
+            <option value="0">Вариант 1</option>
+            <option value="1">Вариант 2</option>
+            <option value="2">Вариант 3</option>
+            <option value="3">Вариант 4</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Объяснение</span>
+          <textarea class="field__input" id="fieldExplanation" rows="2" required placeholder="Почему это правильный ответ"></textarea>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Источник</span>
+          <input class="field__input" id="fieldSource" placeholder="Фин Срез/Основы Linux.one или «добавлено вручную»">
+        </label>
+
+        <div class="form__actions">
+          <button class="btn btn--primary" type="submit">Сохранить карточку</button>
+          <button class="btn" type="button" id="btnCancelAdd">Отмена</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p class="muted">
+      Локальный тренажёр. Данные читаются из <code>data/cards.json</code>, прогресс хранится в localStorage браузера.
+    </p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
