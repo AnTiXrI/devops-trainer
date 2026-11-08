@@ -4,7 +4,7 @@
    Все пути относительные: приложение работает и из корня сайта, и из подпапки. */
 
 const CACHE_PREFIX = 'devops-trainer-';
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
 
 const PRECACHE_PATHS = [
@@ -13,7 +13,7 @@ const PRECACHE_PATHS = [
   './styles.css',
   './app.js',
   './data/cards.json',
-  './manifest.webmanifest',
+  './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
