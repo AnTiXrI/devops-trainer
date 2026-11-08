@@ -34,7 +34,9 @@
           Только запланированные карточки. Сначала вспоминаете сами, варианты — как подсказка.
           Интервалы меняет только этот режим.
         </p>
-        <div class="toolbar">
+        <div class="mixed__row">
+          <span class="size-label">Сколько взять:</span>
+          <div class="size-switch" id="reviewSizes" role="group" aria-label="Сколько карточек повторять"></div>
           <button class="btn btn--primary" id="btnDue" type="button">Повторять — 0</button>
         </div>
         <p class="menu-hint" id="dueHint" hidden></p>
@@ -57,6 +59,13 @@
             <input type="checkbox" id="toggleReview">
             <span id="toggleReviewLabel">Включить карточки на проверке</span>
           </label>
+        </div>
+
+        <div class="mixed__row">
+          <span class="size-label">Все темы вперемешку:</span>
+          <div class="size-switch" id="learnSizes" role="group" aria-label="Сколько карточек тренировать"></div>
+          <button class="btn btn--primary" id="btnMixed" type="button">Начать — 0</button>
+          <button class="btn btn--ghost" id="btnMixedEndless" type="button">Бесконечная тренировка</button>
         </div>
 
         <div class="toolbar">

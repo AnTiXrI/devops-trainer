@@ -82,7 +82,16 @@ def main(argv: list[str]) -> int:
         if not isinstance(card.get("tags"), list) or not card.get("tags"):
             errors.append(f"{label}: tags пустой")
 
-        blob = json.dumps(card, ensure_ascii=False)
+        # Поле sources — ссылки на документацию, а не внутренние адреса.
+        # Проверяем его отдельно, а из общего сканирования исключаем.
+        sources = card.get("sources")
+        if sources is not None:
+            if not isinstance(sources, list) or not all(
+                isinstance(item, str) and item.startswith("https://") for item in sources
+            ):
+                errors.append(f"{label}: sources должен быть массивом https-ссылок")
+        card_for_scan = {k: v for k, v in card.items() if k != "sources"}
+        blob = json.dumps(card_for_scan, ensure_ascii=False)
         for name, rx in SENSITIVE.items():
             if rx.search(blob):
                 errors.append(f"{label}: найдено потенциально чувствительное — {name}")

@@ -171,7 +171,7 @@
       "kill"
     ],
     "needs_review": true,
-    "question_to_check": "В заметке таблица сигналов развалилась на отдельные строки: сверь, что описанию «мгновенно убить, не перехватывается» соответствует именно SIGKILL."
+    "question_to_check": "Подтвердить по заметкам, что «мгновенно убивает и не перехватывается» относится именно к SIGKILL: таблица сигналов в заметке развалилась на отдельные строки."
   },
   {
     "id": "linux-009",
@@ -482,6 +482,145 @@
     "needs_review": false
   },
   {
+    "id": "concept-linux-inode",
+    "section": "Linux и Bash",
+    "topic": "Файловая система",
+    "difficulty": "medium",
+    "question": "Что такое inode в файловой системе Linux?",
+    "options": [
+      "Структура на диске с метаданными файла: тип, права, владелец, размер и адреса блоков данных",
+      "Порядковый номер, под которым файл записан в каталоге",
+      "Содержимое файла, разбитое на блоки",
+      "Процесс, который открыл файл"
+    ],
+    "correct_index": 0,
+    "explanation": "inode — структура с метаданными файла: тип, права, владелец, размер, время изменения и адреса блоков с данными. В каталоге хранится имя файла и номер inode — это отдельное понятие, идентификатор структуры. Один inode может иметь несколько имён (жёсткие ссылки).",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "inode",
+      "filesystem"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "linux-003",
+      "linux-015"
+    ],
+    "related_cards": [],
+    "sources": [
+      "https://man7.org/linux/man-pages/man7/inode.7.html"
+    ],
+    "verified": true
+  },
+  {
+    "id": "concept-linux-perms",
+    "section": "Linux и Bash",
+    "topic": "Права доступа",
+    "difficulty": "medium",
+    "question": "Как читается запись прав -rwxr-xr-x?",
+    "options": [
+      "Файл: владелец читает, пишет и запускает; группа и остальные только читают и запускают",
+      "Файл: все пользователи читают, пишут и запускают",
+      "Каталог: владелец пишет, группа и остальные читают",
+      "Файл: владелец только запускает, группа и остальные только читают"
+    ],
+    "correct_index": 0,
+    "explanation": "Строка из десяти знаков: первый — тип объекта (- файл, d каталог), затем три тройки прав: владелец, группа, остальные. r — чтение, w — запись, x — запуск для файла или вход для каталога. Прочерк означает, что права нет.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "permissions",
+      "chmod"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "linux-013",
+      "linux-014",
+      "linux-019",
+      "linux-020"
+    ],
+    "related_cards": [
+      "linux-013",
+      "linux-014",
+      "linux-019",
+      "linux-020"
+    ],
+    "sources": [
+      "https://man7.org/linux/man-pages/man1/chmod.1.html"
+    ],
+    "verified": true
+  },
+  {
+    "id": "concept-linux-streams",
+    "section": "Linux и Bash",
+    "topic": "Потоки ввода-вывода",
+    "difficulty": "medium",
+    "question": "Зачем процессу три стандартных потока — stdin, stdout и stderr?",
+    "options": [
+      "Чтобы отделить ввод, обычный вывод и сообщения об ошибках: их можно перенаправлять независимо",
+      "Чтобы каждый поток обязательно писался в отдельный файл на диске",
+      "Чтобы программа могла выводить данные сразу в три терминала",
+      "Чтобы ограничить объём вывода тремя строками"
+    ],
+    "correct_index": 0,
+    "explanation": "stdin (дескриптор 0) — ввод, stdout (1) — обычный вывод, stderr (2) — ошибки. При обычном интерактивном запуске без перенаправлений все три подключены к терминалу, но это разные каналы: 2> перенаправляет только ошибки, 1> — только обычный вывод.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "bash",
+      "stdout",
+      "stderr"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "linux-009",
+      "linux-011"
+    ],
+    "related_cards": [
+      "linux-009",
+      "linux-011",
+      "linux-012"
+    ],
+    "verified": true,
+    "sources": [
+      "https://man7.org/linux/man-pages/man3/stdout.3.html"
+    ]
+  },
+  {
+    "id": "concept-linux-systemd-unit",
+    "section": "Linux и Bash",
+    "topic": "systemd",
+    "difficulty": "medium",
+    "question": "Что такое unit в systemd?",
+    "options": [
+      "Объект, которым управляет systemd: служба, таймер, точка монтирования",
+      "Файл конфигурации ядра",
+      "Первый процесс, который запускает systemd",
+      "Каталог, в который складываются логи служб"
+    ],
+    "correct_index": 0,
+    "explanation": "Unit — объект, которым управляет systemd: служба, таймер, точка монтирования. Описывается он отдельным unit-файлом, поэтому systemctl enable myservice работает с юнитом myservice.service.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "systemd",
+      "unit"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "linux-004",
+      "linux-018"
+    ],
+    "related_cards": [
+      "linux-004",
+      "linux-018"
+    ],
+    "verified": true,
+    "sources": [
+      "https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html"
+    ]
+  },
+  {
     "id": "net-001",
     "section": "Сети и Web",
     "topic": "Модель OSI",
@@ -727,15 +866,15 @@
     "section": "Сети и Web",
     "topic": "CORS",
     "difficulty": "medium",
-    "question": "Почему браузер заблокирует запрос со страницы сайта A к API сайта B?",
+    "question": "Почему скрипт со страницы сайта A не может прочитать ответ API сайта B?",
     "options": [
       "HTTP/2 не поддерживает межсайтовые запросы",
       "Сервер B не отдал TLS-сертификат при подключении",
-      "Сработает CORS: браузер ограничивает запросы с одного домена на другой",
+      "Origin другой, а сервер B не прислал разрешающий CORS-заголовок — браузер не отдаст ответ скрипту",
       "DNS не сможет разрешить имя сервера B"
     ],
     "correct_index": 2,
-    "explanation": "CORS — механизм безопасности браузера: ответ чужого домена отбрасывается, если тот не разрешил источник заголовком Access-Control-Allow-Origin. Ограничение живёт в браузере, поэтому серверный прокси её обходит.",
+    "explanation": "Политика одного источника разрешает скрипту читать ответ только со своего origin (схема + хост + порт). Если сервер B не прислал Access-Control-Allow-Origin, браузер может выполнить запрос, но ответ скрипту не отдаст; для не-простых запросов он сначала отправит preflight OPTIONS и без разрешения не выполнит сам запрос. Запрещено не любое обращение к другому сайту, а чтение ответа без разрешения.",
     "source_note": "Фин Срез/Основы Web.one",
     "tags": [
       "cors",
@@ -752,12 +891,12 @@
     "question": "Что даёт мультиплексирование в HTTP/2 по сравнению с HTTP/1.1?",
     "options": [
       "Замену заголовка Host на IP-адрес сервера",
-      "Много запросов в одном TCP-соединении вместо схемы «одно соединение — один запрос»",
+      "Несколько запросов обрабатываются в одном соединении параллельно, без ожидания ответов по очереди",
       "Полный отказ от TLS-шифрования канала",
       "Автоматический выпуск самоподписанного сертификата"
     ],
     "correct_index": 1,
-    "explanation": "В HTTP/1.1 каждое соединение обслуживало один запрос, что давало задержки при множестве ресурсов; HTTP/2 мультиплексирует потоки и сжимает заголовки через HPACK. Поэтому он быстрее и экономнее.",
+    "explanation": "В HTTP/1.1 соединение можно держать открытым (keep-alive) и даже отправлять запросы заранее (pipelining), но ответы возвращаются строго по порядку: медленный ответ задерживает остальные. HTTP/2 передаёт несколько независимых потоков в одном TCP-соединении и сжимает заголовки (HPACK), поэтому очередь ответов не блокирует остальные запросы.",
     "source_note": "Фин Срез/Основы Web.one",
     "tags": [
       "http2",
@@ -809,7 +948,7 @@
       "ca"
     ],
     "needs_review": true,
-    "question_to_check": "В заметке порядок звеньев цепочки перепутан («сайт → подписан корневым CA → подписан промежуточным CA»). Уточнить правильную последовательность: лист → промежуточный CA → корневой CA?"
+    "question_to_check": "Подтвердить цепочку доверия по заметкам: лист → промежуточный CA → корневой. В заметке порядок звеньев был перепутан; в карточке порядок исправлен, но первоисточником не подтверждён."
   },
   {
     "id": "net-016",
@@ -832,6 +971,140 @@
       "cli"
     ],
     "needs_review": false
+  },
+  {
+    "id": "concept-net-ip",
+    "section": "Сети и Web",
+    "topic": "Адресация",
+    "difficulty": "easy",
+    "question": "Из чего состоит IPv4-адрес?",
+    "options": [
+      "Из 32 бит, записанных четырьмя числами от 0 до 255",
+      "Из 48 бит, записанных шестью парами шестнадцатеричных цифр",
+      "Из имени хоста и номера порта",
+      "Из 128 бит, записанных восемью группами"
+    ],
+    "correct_index": 0,
+    "explanation": "IPv4 — это 32 бита, которые для удобства делят на четыре байта и пишут через точку. Длина адреса фиксирована: четыре октета, то есть 32 бита.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "ip",
+      "ipv4"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "net-008"
+    ],
+    "related_cards": [
+      "net-008",
+      "net-009"
+    ],
+    "sources": [
+      "https://www.rfc-editor.org/rfc/rfc791.txt"
+    ],
+    "verified": true
+  },
+  {
+    "id": "concept-net-gateway",
+    "section": "Сети и Web",
+    "topic": "Маршрутизация",
+    "difficulty": "medium",
+    "question": "Что такое маршрут по умолчанию (шлюз по умолчанию)?",
+    "options": [
+      "Маршрут, который применяется, если для адреса нет более конкретного подходящего маршрута",
+      "Сервер, который выдаёт IP-адреса по DHCP",
+      "Первый DNS-сервер из настроек",
+      "Адрес самой машины в локальной сети"
+    ],
+    "correct_index": 0,
+    "explanation": "Если для адреса назначения нет более конкретного подходящего маршрута, пакет уходит на шлюз по умолчанию — обычно это маршрутизатор, который знает, куда передать пакет дальше. Чаще всего так уходят пакеты за пределы локальной подсети.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "gateway",
+      "routing"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "net-008",
+      "net-011"
+    ],
+    "related_cards": [
+      "net-008",
+      "net-011"
+    ],
+    "verified": true,
+    "sources": [
+      "https://www.rfc-editor.org/rfc/rfc791.txt"
+    ]
+  },
+  {
+    "id": "concept-net-tls-cert",
+    "section": "Сети и Web",
+    "topic": "TLS-сертификаты",
+    "difficulty": "medium",
+    "question": "Зачем серверу TLS-сертификат?",
+    "options": [
+      "Подтверждает подлинность сервера и содержит открытый ключ, которым проверяют подпись",
+      "Шифрует весь трафик вместо протокола HTTPS",
+      "Хранит пароли пользователей для входа на сайт",
+      "Ускоряет соединение за счёт сжатия заголовков"
+    ],
+    "correct_index": 0,
+    "explanation": "Сертификат содержит открытый ключ сервера и подпись удостоверяющего центра. Браузер проверяет подпись издателя и соответствие сертификата имени сайта, а открытый ключ сервера используется уже при установлении TLS-соединения, в котором шифруется трафик.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "tls",
+      "certificate"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "net-015",
+      "net-016"
+    ],
+    "related_cards": [
+      "net-015",
+      "net-016"
+    ],
+    "verified": true,
+    "sources": [
+      "https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Transport_Layer_Security"
+    ]
+  },
+  {
+    "id": "concept-net-reverse-proxy",
+    "section": "Сети и Web",
+    "topic": "Прокси",
+    "difficulty": "medium",
+    "question": "Чем обратный прокси отличается от прямого?",
+    "options": [
+      "Обратный стоит перед серверами и принимает запросы клиентов, прямой — на стороне клиента и ходит в интернет за него",
+      "Обратный работает только с HTTPS, прямой — только с HTTP",
+      "Обратный не умеет кэшировать ответы",
+      "Это одно и то же, разница только в названии"
+    ],
+    "correct_index": 0,
+    "explanation": "Прямой прокси настраивает клиент: трафик клиента идёт через него наружу. Обратный прокси стоит перед приложением: клиент думает, что общается с сервером напрямую, а запрос принимает и распределяет прокси. Поэтому его используют для балансировки, TLS и кэша.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "proxy",
+      "reverse-proxy"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "db-003"
+    ],
+    "related_cards": [
+      "net-012",
+      "db-003"
+    ],
+    "sources": [
+      "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Proxy_servers_and_tunneling"
+    ],
+    "verified": true
   },
   {
     "id": "git-001",
@@ -1407,6 +1680,38 @@
     "needs_review": false
   },
   {
+    "id": "concept-cicd-artifact",
+    "section": "CI/CD: Jenkins и GitLab CI",
+    "topic": "Артефакты",
+    "difficulty": "easy",
+    "question": "Что такое артефакт в CI/CD?",
+    "options": [
+      "Файлы, которые задача сохраняет как результат и передаёт следующим стадиям",
+      "Правило, по которому выбирается раннер для задачи",
+      "Секрет, подставляемый в переменные окружения",
+      "Команда, запускающая пайплайн по расписанию"
+    ],
+    "correct_index": 0,
+    "explanation": "Артефакт — файлы, которые задача сохраняет как результат и передаёт дальше: собранный пакет, бинарник, отчёт тестов. В GitLab CI их перечисляют в artifacts:paths; лог задачи доступен отдельно, но его тоже можно сохранить как артефакт.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "ci",
+      "artifact"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "docker-011"
+    ],
+    "related_cards": [
+      "docker-011"
+    ],
+    "verified": true,
+    "sources": [
+      "https://docs.gitlab.com/ci/jobs/job_artifacts/"
+    ]
+  },
+  {
     "id": "docker-001",
     "section": "Docker и контейнеры",
     "topic": "Компоненты Docker",
@@ -1729,6 +2034,113 @@
     "needs_review": false
   },
   {
+    "id": "concept-docker-image",
+    "section": "Docker и контейнеры",
+    "topic": "Образы",
+    "difficulty": "easy",
+    "question": "Что такое Docker-образ?",
+    "options": [
+      "Неизменяемый набор слоёв файловой системы и метаданных, из которого запускают контейнер",
+      "Запущенный процесс со своей файловой системой",
+      "Файл конфигурации со списком контейнеров",
+      "Каталог на хосте, куда пишутся логи контейнеров"
+    ],
+    "correct_index": 0,
+    "explanation": "Образ — шаблон только для чтения: слои файловой системы плюс метаданные (команда запуска, переменные, порты). Контейнер — запущенный образ с добавленным сверху слоем для записи. Один и тот же образ можно запускать сколько угодно раз.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "docker",
+      "image"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "docker-002",
+      "docker-011",
+      "docker-013",
+      "linux-022"
+    ],
+    "related_cards": [
+      "docker-002",
+      "docker-011",
+      "docker-013"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/docker/docs/main/content/get-started/docker-overview.md"
+    ],
+    "verified": true
+  },
+  {
+    "id": "concept-docker-dockerfile",
+    "section": "Docker и контейнеры",
+    "topic": "Dockerfile",
+    "difficulty": "easy",
+    "question": "Что такое Dockerfile?",
+    "options": [
+      "Текстовый файл с инструкциями, по которым собирают образ",
+      "Готовый образ, скачанный из реестра",
+      "Файл с переменными окружения контейнера",
+      "Скрипт, который запускается внутри уже работающего контейнера"
+    ],
+    "correct_index": 0,
+    "explanation": "Dockerfile описывает сборку по шагам: базовый образ, копирование файлов, установка пакетов, команда запуска. По этому файлу команда docker build собирает образ.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "dockerfile",
+      "build"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "docker-007",
+      "docker-009"
+    ],
+    "related_cards": [
+      "docker-007",
+      "docker-008",
+      "docker-011",
+      "docker-012"
+    ],
+    "verified": true,
+    "sources": [
+      "https://raw.githubusercontent.com/docker/docs/main/content/manuals/build/concepts/dockerfile.md"
+    ]
+  },
+  {
+    "id": "concept-docker-registry",
+    "section": "Docker и контейнеры",
+    "topic": "Реестр образов",
+    "difficulty": "easy",
+    "question": "Что такое реестр (registry) образов?",
+    "options": [
+      "Хранилище образов с именами и тегами, откуда их скачивают и куда загружают",
+      "Список запущенных контейнеров на хосте",
+      "Локальный кэш слоёв на диске",
+      "Каталог, в котором Docker хранит логи"
+    ],
+    "correct_index": 0,
+    "explanation": "Реестр — сервер с образами: у каждого есть имя и тег версии, например myapp:1.4. Команда docker push отправляет образ в реестр, docker pull забирает оттуда. Реестр может быть публичным или внутренним.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "docker",
+      "registry"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "docker-001",
+      "docker-011"
+    ],
+    "related_cards": [
+      "docker-001",
+      "docker-011"
+    ],
+    "sources": [
+      "https://raw.githubusercontent.com/docker/docs/main/content/get-started/docker-overview.md"
+    ],
+    "verified": true
+  },
+  {
     "id": "k8s-001",
     "section": "Kubernetes",
     "topic": "Объекты Kubernetes",
@@ -1757,13 +2169,13 @@
     "difficulty": "easy",
     "question": "Зачем нужен DaemonSet?",
     "options": [
-      "Гарантирует, что на каждой ноде кластера запущен один под",
+      "Запускает по одному поду на каждой подходящей ноде — с учётом taints, nodeSelector и affinity",
       "Открывает сервис наружу через облачный балансировщик",
       "Даёт подам стабильные имена и строгий порядок запуска",
       "Поддерживает заданное число одинаковых подов в кластере"
     ],
     "correct_index": 0,
-    "explanation": "DaemonSet привязывает под к каждой ноде, поэтому его используют для агентов, которые обязаны работать на всём кластере — логгеров, мониторинга, антивируса.",
+    "explanation": "DaemonSet создаёт под на каждой ноде, которая подходит под правила: учитываются taints и tolerations, nodeSelector и affinity, поэтому на части нод подов может не быть. Используют для агентов, которые должны работать на всём кластере, — логгеров, мониторинга, антивируса.",
     "source_note": "Фин Срез/Основны Containers orchestration.one",
     "tags": [
       "daemonset",
@@ -1956,12 +2368,12 @@
     "question": "Чем readinessProbe отличается от livenessProbe?",
     "options": [
       "Readiness умеет проверять только TCP-порт, а liveness — только HTTP",
-      "Readiness не даёт отправлять трафик в под, пока он не готов, а liveness перезапускает зависший под",
+      "Readiness исключает под из балансировки, пока он не готов, а liveness перезапускает контейнер, если проверка не проходит",
       "Readiness работает только в StatefulSet, а liveness — в Deployment",
-      "Readiness перезапускает под, а liveness только исключает его из балансировки"
+      "Readiness перезапускает контейнер, а liveness только исключает под из балансировки"
     ],
     "correct_index": 1,
-    "explanation": "Это разные реакции на разные проблемы: неготовый под просто исключают из балансировки, а зависший нужно убить и перезапустить, иначе он останется нерабочим.",
+    "explanation": "Это разные реакции на разные проблемы: неготовый под не получает трафик, но продолжает работать; при провале liveness kubelet перезапускает контейнер в поде. Сам под при этом не пересоздаётся — растёт счётчик перезапусков контейнера.",
     "source_note": "Фин Срез/Основны Containers orchestration.one",
     "tags": [
       "probes",
@@ -2079,6 +2491,141 @@
       "sidecar"
     ],
     "needs_review": false
+  },
+  {
+    "id": "concept-k8s-node",
+    "section": "Kubernetes",
+    "topic": "Кластер и ноды",
+    "difficulty": "easy",
+    "question": "Что такое нода (node) в Kubernetes?",
+    "options": [
+      "Машина кластера, на которой запускаются поды и работает kubelet",
+      "Отдельный контейнер внутри пода",
+      "Виртуальный адрес сервиса внутри кластера",
+      "Правило распределения запросов между подами"
+    ],
+    "correct_index": 0,
+    "explanation": "Кластер состоит из нод — физических или виртуальных машин. Поды запускает kubelet, работающий на ноде; сетевые правила на ноде обслуживает kube-proxy (как правило). Компоненты управления обычно размещают на отдельных нодах control plane.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "kubernetes",
+      "node"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "k8s-001",
+      "k8s-009"
+    ],
+    "related_cards": [
+      "k8s-001",
+      "k8s-009",
+      "k8s-010"
+    ],
+    "verified": true,
+    "sources": [
+      "https://kubernetes.io/docs/concepts/architecture/nodes/"
+    ]
+  },
+  {
+    "id": "concept-k8s-service",
+    "section": "Kubernetes",
+    "topic": "Service",
+    "difficulty": "medium",
+    "question": "Зачем нужен обычный ClusterIP Service с selector?",
+    "options": [
+      "Дать группе подов один стабильный внутренний адрес и имя, хотя сами поды пересоздаются",
+      "Хранить настройки приложения парами ключ-значение",
+      "Ограничить потребление процессора контейнерами",
+      "Собирать метрики с приложений"
+    ],
+    "correct_index": 0,
+    "explanation": "Поды пересоздаются, их IP меняются. ClusterIP Service с selector — виртуальный внутренний адрес и DNS-имя, за которыми стоит набор подов, выбранных по меткам. Клиент обращается к Service, а не к конкретному поду. Настройки хранит ConfigMap, лимиты задаёт ResourceQuota, метрики собирает отдельная система.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "kubernetes",
+      "service"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "k8s-004",
+      "k8s-014"
+    ],
+    "related_cards": [
+      "k8s-004",
+      "k8s-009",
+      "k8s-012",
+      "k8s-014"
+    ],
+    "verified": true,
+    "sources": [
+      "https://kubernetes.io/docs/concepts/services-networking/service/"
+    ]
+  },
+  {
+    "id": "concept-k8s-ingress",
+    "section": "Kubernetes",
+    "topic": "Ingress",
+    "difficulty": "medium",
+    "question": "Что такое Ingress в Kubernetes?",
+    "options": [
+      "Правила маршрутизации внешних HTTP-запросов к сервисам по хосту и пути",
+      "Тип Service, который открывает порт на каждой ноде",
+      "Внутренний балансировщик для трафика между подами",
+      "Хранилище сертификатов для HTTPS"
+    ],
+    "correct_index": 0,
+    "explanation": "Ingress описывает, какой домен и путь ведут к какому Service, и работает на уровне HTTP. Правила выполняет установленный в кластере ingress-контроллер, например nginx. Открытие порта на каждой ноде — это Service типа NodePort.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "kubernetes",
+      "ingress"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "helm-001"
+    ],
+    "related_cards": [
+      "helm-001"
+    ],
+    "sources": [
+      "https://kubernetes.io/docs/concepts/services-networking/ingress/"
+    ],
+    "verified": true
+  },
+  {
+    "id": "concept-k8s-labels",
+    "section": "Kubernetes",
+    "topic": "Метки и селекторы",
+    "difficulty": "medium",
+    "question": "Что такое label и selector в Kubernetes?",
+    "options": [
+      "Label — метка ключ=значение на объекте, selector — условие отбора объектов по этим меткам",
+      "Label — имя контейнера, selector — номер порта",
+      "Label — комментарий в YAML, selector — поле сортировки вывода kubectl",
+      "Label — версия образа, selector — политика перезапуска"
+    ],
+    "correct_index": 0,
+    "explanation": "Метки — произвольные пары ключ=значение, например app=web. Selector описывает, какие метки должны совпасть: по нему Service находит свои поды, а команда kubectl get pods -l app=web фильтрует вывод. Меткой можно пометить и версию приложения.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "kubernetes",
+      "labels"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "k8s-012"
+    ],
+    "related_cards": [
+      "k8s-012"
+    ],
+    "verified": true,
+    "sources": [
+      "https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/"
+    ]
   },
   {
     "id": "helm-001",
@@ -2265,13 +2812,13 @@
     "difficulty": "easy",
     "question": "В чём суть подхода GitOps?",
     "options": [
-      "Весь деплой управляется через Git: кластер всегда равен тому, что лежит в репозитории",
+      "Желаемое состояние кластера описано в Git и считается источником истины, а агент приводит кластер к этому состоянию",
       "Образы собираются внутри кластера без участия Git",
       "Манифесты хранятся только на локальной машине разработчика",
       "Манифесты применяются вручную через kubectl после каждого релиза"
     ],
     "correct_index": 0,
-    "explanation": "Изменил что-то в Git — ArgoCD или FluxCD сам применит это в Kubernetes, поэтому Git становится единственным источником истины о состоянии кластера.",
+    "explanation": "GitOps задаёт принцип: что должно быть в кластере, описано в Git. Синхронизацию выполняет агент (Argo CD, Flux): он применяет изменения, а selfHeal устраняет ручные правки. Пока синхронизация не выполнена, фактическое состояние может отличаться от Git, — соответствие обеспечивает агент, а не сам Git.",
     "source_note": "Фин Срез/GitOps.one",
     "tags": [
       "gitops",
@@ -2613,6 +3160,37 @@
     "needs_review": false
   },
   {
+    "id": "concept-ansible-idempotency",
+    "section": "Ansible",
+    "topic": "Идемпотентность",
+    "difficulty": "medium",
+    "question": "Что значит, что операция идемпотентна?",
+    "options": [
+      "Повторный запуск с теми же входными данными не меняет результат и состояние",
+      "Операция всегда выполняется быстрее при повторном запуске",
+      "Операция обязательно откатывается при ошибке",
+      "Операция выполняется только один раз и больше не повторяется"
+    ],
+    "correct_index": 0,
+    "explanation": "Идемпотентность — повторный запуск приводит систему к тому же целевому состоянию: если оно уже достигнуто, изменений не происходит. На этом строится Ansible: задача «пакет установлен» второй раз не переустанавливает пакет. Откат при ошибке — отдельная возможность, а не признак идемпотентности.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "ansible",
+      "idempotency"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [],
+    "related_cards": [
+      "ansible-001",
+      "ansible-008"
+    ],
+    "verified": true,
+    "sources": [
+      "https://docs.ansible.com/ansible/latest/reference_appendices/glossary.html"
+    ]
+  },
+  {
     "id": "tf-001",
     "section": "Terraform и облако",
     "topic": "Основы Terraform",
@@ -2771,15 +3349,15 @@
     "section": "Terraform и облако",
     "topic": "Контейнерные образы",
     "difficulty": "medium",
-    "question": "Для чего используется Container-Optimized Image?",
+    "question": "Для чего в Yandex Cloud используется Container Optimized Image?",
     "options": [
-      "Это образ ВМ со встроенным Docker для запуска контейнеров без Kubernetes",
+      "Это образ ВМ с Ubuntu LTS, Docker и демоном для запуска контейнеров — контейнер можно запустить сразу после создания ВМ",
       "Это сервис резервного копирования дисков виртуальных машин",
       "Это балансировщик нагрузки L4 для контейнерных приложений",
       "Это приватный реестр, в котором хранятся Docker-образы"
     ],
     "correct_index": 0,
-    "explanation": "COI — минимальный образ со встроенным containerd, оптимизированный под контейнеры: поднимаешь ВМ и сразу запускаешь контейнер, без кластера Kubernetes.",
+    "explanation": "По документации Yandex Cloud Container Optimized Image — образ виртуальной машины, оптимизированный для запуска Docker-контейнеров: он включает Ubuntu LTS, Docker и демон для запуска контейнеров. Интеграция с платформой позволяет запустить контейнер сразу после создания ВМ и обновлять его с минимальным простоем.",
     "source_note": "Фин Срез/Облачные технологии.one",
     "tags": [
       "containers",
@@ -2831,6 +3409,40 @@
       "vendor-lock-in"
     ],
     "needs_review": false
+  },
+  {
+    "id": "concept-tf-plan-apply",
+    "section": "Terraform и облако",
+    "topic": "Команды",
+    "difficulty": "medium",
+    "question": "Чем terraform plan отличается от terraform apply?",
+    "options": [
+      "plan показывает предложенные изменения и не применяет их; apply применяет сохранённый план, если он передан, иначе строит новый",
+      "plan создаёт state-файл, а apply его удаляет",
+      "plan применяет изменения, а apply только проверяет",
+      "Разницы нет: обе команды применяют конфигурацию"
+    ],
+    "correct_index": 0,
+    "explanation": "plan сравнивает конфигурацию с известным состоянием и показывает предложенные изменения, не применяя их. apply применяет: если ему передан сохранённый файл плана — именно этот план, иначе он строит план заново и применяет его.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "terraform",
+      "plan"
+    ],
+    "needs_review": true,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "tf-002"
+    ],
+    "related_cards": [
+      "tf-002",
+      "tf-005"
+    ],
+    "verified": false,
+    "question_to_check": "Сверить по документации terraform apply поведение с сохранённым файлом плана и без него: страница apply не открылась полностью.",
+    "sources": [
+      "https://developer.hashicorp.com/terraform/cli/commands/plan"
+    ]
   },
   {
     "id": "mon-001",
@@ -3141,11 +3753,44 @@
     "needs_review": false
   },
   {
+    "id": "concept-mon-exporter",
+    "section": "Мониторинг и логирование",
+    "topic": "Prometheus",
+    "difficulty": "medium",
+    "question": "Что такое exporter в экосистеме Prometheus?",
+    "options": [
+      "Служба, которая отдаёт метрики системы в текстовом формате по HTTP",
+      "База данных, где Prometheus хранит метрики",
+      "Правило, по которому Prometheus отправляет алерты",
+      "Агент, который сам отправляет метрики в Grafana"
+    ],
+    "correct_index": 0,
+    "explanation": "Prometheus сам опрашивает цели по HTTP и ждёт метрики в текстовом формате. Exporter — служба, которая знает, как получить цифры у системы (у базы, ОС, веб-сервера), и отдаёт их в этом формате; /metrics — распространённый путь, но не обязательное условие. Хранение — задача Prometheus, алерты отправляет Alertmanager.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "prometheus",
+      "exporter"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [
+      "mon-010"
+    ],
+    "related_cards": [
+      "mon-010",
+      "mon-004"
+    ],
+    "verified": true,
+    "sources": [
+      "https://prometheus.io/docs/instrumenting/exporters/"
+    ]
+  },
+  {
     "id": "db-001",
     "section": "СУБД, брокеры, хранилища",
     "topic": "CAP-теорема и компромиссы",
     "difficulty": "medium",
-    "question": "При сетевом partition (разрыве связи) что приходится выбирать по CAP?",
+    "question": "В распределённой системе с репликацией произошёл сетевой раздел (partition). Что приходится выбирать по теореме CAP?",
     "options": [
       "Ничего выбирать не нужно: CAP действует только при отказе диска",
       "AP — доступность, сохранив при этом полную согласованность",
@@ -3153,14 +3798,15 @@
       "CP — согласованность, отказавшись от части доступности"
     ],
     "correct_index": 3,
-    "explanation": "Разрыв сети в распределённой системе неизбежен, поэтому P считают обязательным, и остаётся выбор между C и A: для финансовых данных берут CP, для логирования и аналитики — AP.",
+    "explanation": "CAP описывает именно ситуацию сетевого раздела: часть узлов перестаёт видеть другую. В этот момент нельзя одновременно гарантировать согласованность и доступность — выбирают одно. Вопрос возникает из-за разрыва связи, а не потому что отказ сети «обязателен»: вне раздела система может обеспечивать и согласованность, и доступность.",
     "source_note": "Фин Срез/СУБД.one",
     "tags": [
       "cap",
       "replication",
       "availability"
     ],
-    "needs_review": false
+    "needs_review": true,
+    "question_to_check": "Сверить формулировку CAP и статус P по первоисточнику: Brewer, «CAP Twelve Years Later» (ACM). Официальная страница была недоступна."
   },
   {
     "id": "db-002",
@@ -3205,7 +3851,7 @@
       "haproxy"
     ],
     "needs_review": true,
-    "question_to_check": "В заметках HAProxy и pgbouncer свалены в один «proxy layer»: уточнить, что pgbouncer — пулер соединений, а маршрутизацией занимается балансировщик."
+    "question_to_check": "Разделить понятия: pgbouncer — пулер соединений, а маршрутизацию и отсечение упавших нод делает балансировщик (HAProxy). Сейчас объяснение объединяет их в один «proxy layer» — формулировку нужно уточнить."
   },
   {
     "id": "db-004",
@@ -3448,6 +4094,36 @@
       "security"
     ],
     "needs_review": false
+  },
+  {
+    "id": "concept-db-acid",
+    "section": "СУБД, брокеры, хранилища",
+    "topic": "Транзакции",
+    "difficulty": "medium",
+    "question": "Что означает ACID у транзакций базы данных?",
+    "options": [
+      "Атомарность, согласованность, изолированность и долговечность",
+      "Автоматичность, кэширование, индексирование и дублирование",
+      "Асинхронность, консистентность, идемпотентность и доступность",
+      "Архивация, сжатие, импорт и дамп"
+    ],
+    "correct_index": 0,
+    "explanation": "ACID — четыре свойства транзакции. Атомарность: изменения применяются целиком или не применяются вовсе. Согласованность: транзакция переводит данные между допустимыми состояниями. Изолированность: параллельные транзакции не видят незавершённых изменений друг друга. Долговечность: подтверждённые изменения сохраняются при сбое. Конкретные гарантии зависят от СУБД и её настроек.",
+    "source_note": "concept-audit: базовое понятие (не из заметок)",
+    "tags": [
+      "acid",
+      "transactions"
+    ],
+    "needs_review": false,
+    "provenance": "concept-audit",
+    "derived_from": [],
+    "related_cards": [
+      "db-006"
+    ],
+    "verified": true,
+    "sources": [
+      "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+    ]
   },
   {
     "id": "practice-001",
@@ -3741,22 +4417,22 @@
       "troubleshooting"
     ],
     "needs_review": true,
-    "question_to_check": "Дописать порядок диагностики: describe → logs → exec → проверка Service и Endpoints, плюс типовые статусы подов."
+    "question_to_check": "В заметках нет полного порядка диагностики: карточка описывает только первый шаг (describe). Сверить с практикой шаги describe → logs → exec → проверка Service и Endpoints плюс типовые статусы подов."
   },
   {
     "id": "incident-002",
     "section": "Диагностика инцидентов",
     "topic": "Probes и трафик",
     "difficulty": "medium",
-    "question": "Под запущен и работает, но трафик в него не идёт. Какая проверка за это отвечает?",
+    "question": "Под в состоянии Running, но readinessProbe не проходит. Получит ли он трафик от Service?",
     "options": [
-      "ResourceQuota",
-      "readinessProbe",
-      "startupProbe",
-      "livenessProbe"
+      "Нет: под не попадёт в Endpoints и балансировку, пока проверка не пройдёт",
+      "Да: состояния Running достаточно для трафика",
+      "Да, но только через NodePort",
+      "Нет, под будет удалён и создан заново"
     ],
-    "correct_index": 1,
-    "explanation": "readinessProbe держит под вне балансировки, пока он не готов принимать трафик. livenessProbe отвечает за перезапуск зависшего приложения.",
+    "correct_index": 0,
+    "explanation": "Service отправляет трафик только на поды, прошедшие readiness-проверку: они попадают в Endpoints. Если трафик не идёт, стоит проверить и selector Service — при несовпадении меток под тоже не попадёт в Endpoints, даже будучи готовым. Под из-за провала readiness не удаляется.",
     "source_note": "Фин Срез/Основны Containers orchestration.one",
     "tags": [
       "probes",
@@ -3775,10 +4451,10 @@
       "Откатит деплой на предыдущую ревизию",
       "Выведет под из балансировки, но оставит работать",
       "Отправит событие в Alertmanager",
-      "Убьёт под и перезапустит его"
+      "Перезапустит контейнер в поде"
     ],
     "correct_index": 3,
-    "explanation": "В заметках: если приложение «зависло», kubelet убьёт под и перезапустит. Исключение из балансировки — это задача readinessProbe.",
+    "explanation": "При провале livenessProbe kubelet перезапускает контейнер, а не удаляет под: под остаётся на ноде, увеличивается число перезапусков. Исключение из балансировки — задача readinessProbe.",
     "source_note": "Фин Срез/Основны Containers orchestration.one",
     "tags": [
       "probes",

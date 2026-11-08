@@ -852,3 +852,56 @@ code {
   line-height: 1.5;
   color: var(--muted);
 }
+
+
+/* ---------- размер сессии и смешанные наборы ---------- */
+
+.mixed__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.size-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.size-switch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.size-switch__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 34px;
+}
+
+.size-switch__btn:hover {
+  color: var(--text);
+}
+
+.size-switch__btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.size-switch__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

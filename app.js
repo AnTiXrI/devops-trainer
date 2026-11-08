@@ -20,6 +20,7 @@ const STORAGE = {
 };
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
+const SESSION_SIZES = [10, 20, 30, 40, 50, 100, 'all'];
 
 /* ---------- состояние ---------- */
 
@@ -37,6 +38,8 @@ const app = {
   attemptRecorded: false,
   includeReview: false,
   studyMode: 'quiz',
+  learnSize: 20,
+  reviewSize: 20,
   summaryPrimary: null,
   summarySecondary: null,
 };
@@ -49,6 +52,7 @@ function cacheDom() {
   const ids = [
     'alertBox', 'menuSummary', 'sectionsList', 'menuEmpty',
     'reviewSummary', 'dueHint', 'btnDue', 'btnNew', 'btnErrors', 'btnDismissErrors', 'btnStats',
+    'learnSizes', 'reviewSizes', 'btnMixed', 'btnMixedEndless',
     'modeQuiz', 'modeRecall', 'toggleReview', 'toggleReviewLabel',
     'btnAddCard', 'btnImport', 'btnExport', 'btnBackup', 'btnRestore', 'importInput', 'backupInput',
     'quizCounter', 'quizProgress', 'quizProgressBar', 'quizMode', 'cardSection', 'cardQuestion',
@@ -351,6 +355,20 @@ function normalizeCard(raw) {
     card.question_to_check = String(raw.question_to_check || '').trim();
   }
 
+  // Необязательные метаданные сохраняем как есть, чтобы они не терялись
+  // при импорте, экспорте и резервном копировании.
+  if (typeof raw.provenance === 'string' && raw.provenance.trim()) {
+    card.provenance = raw.provenance.trim();
+  }
+  ['derived_from', 'related_cards', 'sources'].forEach((field) => {
+    if (!Array.isArray(raw[field])) return;
+    const values = raw[field].map((item) => String(item).trim()).filter(Boolean);
+    if (values.length) card[field] = values;
+  });
+  if (typeof raw.verified === 'boolean') {
+    card.verified = raw.verified;
+  }
+
   return card;
 }
 
@@ -510,6 +528,30 @@ function hideNotice() {
   dom.alertBox.textContent = '';
 }
 
+/* ---------- размер сессии ---------- */
+
+function renderSizeSwitch(container, current, onPick) {
+  if (!container) return;
+  container.textContent = '';
+
+  SESSION_SIZES.forEach((size) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'size-switch__btn';
+    button.dataset.size = String(size);
+    button.textContent = size === 'all' ? 'Все' : String(size);
+    button.setAttribute('aria-pressed', String(current === size));
+    button.addEventListener('click', () => onPick(size));
+    container.appendChild(button);
+  });
+}
+
+function pickSample(cards, size) {
+  const pool = shuffle(cards);
+  if (size === 'all') return pool;
+  return pool.slice(0, Math.min(size, pool.length));
+}
+
 /* ---------- главный экран ---------- */
 
 function renderMenu() {
@@ -526,9 +568,29 @@ function renderMenu() {
     `Доступно карточек: ${available.length} из ${app.cards.length} · разделов: ${sections.size} · ` +
     `в расписании: ${scheduled.length} · на проверке: ${review.length}`;
 
+  const reviewTake = app.reviewSize === 'all'
+    ? due.length
+    : Math.min(app.reviewSize, due.length);
+  const learnTake = app.learnSize === 'all'
+    ? available.length
+    : Math.min(app.learnSize, available.length);
+
   dom.reviewSummary.textContent = `На сегодня: ${due.length}`;
-  dom.btnDue.textContent = `Повторять — ${due.length}`;
-  dom.btnDue.disabled = due.length === 0;
+  dom.btnDue.textContent = `Повторять — ${reviewTake}`;
+  dom.btnDue.disabled = reviewTake === 0;
+
+  dom.btnMixed.textContent = `Начать — ${learnTake}`;
+  dom.btnMixed.disabled = learnTake === 0;
+  dom.btnMixedEndless.disabled = available.length === 0;
+
+  renderSizeSwitch(dom.reviewSizes, app.reviewSize, (size) => {
+    app.reviewSize = size;
+    renderMenu();
+  });
+  renderSizeSwitch(dom.learnSizes, app.learnSize, (size) => {
+    app.learnSize = size;
+    renderMenu();
+  });
   dom.dueHint.hidden = due.length > 0;
   if (due.length === 0) {
     dom.dueHint.textContent = fresh.length
@@ -787,6 +849,7 @@ function startSession(cards, options) {
     method,
     title: options.title,
     reason: options.reason || activity,
+    finite: Boolean(options.finite),
     pool,
     cards: activity === 'learn' ? buildRound(pool, null) : shuffle(pool),
     round: 1,
@@ -1106,7 +1169,7 @@ function goNext() {
     return;
   }
 
-  if (session.activity === 'review') {
+  if (session.activity === 'review' || session.finite) {
     finishSession();
     return;
   }
@@ -1127,11 +1190,22 @@ function finishSession() {
   const isReview = session.activity === 'review';
   const answered = session.answered;
   const percent = answered ? Math.round((session.correct / answered) * 100) : 0;
+  const remaining = isReview ? dueCards(availableCards(app.cards), new Date()).length : 0;
 
-  dom.summaryTitle.textContent = isReview ? 'На сегодня всё' : 'Тренировка завершена';
-  dom.summarySubtitle.textContent = isReview
-    ? `${session.title} · карточек в очереди: ${session.cards.length} · результат ${percent}%`
-    : `${session.title} · кругов: ${session.round} · результат ${percent}%`;
+  if (isReview) {
+    dom.summaryTitle.textContent = remaining > 0 ? 'Повторение приостановлено' : 'На сегодня всё';
+    dom.summarySubtitle.textContent = remaining > 0
+      ? `${session.title} · в этой сессии ${answered} · осталось повторений: ${remaining}`
+      : `${session.title} · в этой сессии ${answered} · повторений на сегодня больше нет`;
+  } else if (session.finite) {
+    dom.summaryTitle.textContent = 'Тренировка завершена';
+    dom.summarySubtitle.textContent =
+      `${session.title} · карточек: ${session.cards.length} · ${percent}%`;
+  } else {
+    dom.summaryTitle.textContent = 'Тренировка завершена';
+    dom.summarySubtitle.textContent =
+      `${session.title} · кругов: ${session.round} · ${percent}%`;
+  }
 
   const stats = isReview
     ? [
@@ -1150,12 +1224,22 @@ function finishSession() {
   renderSummaryStats(stats);
 
   if (isReview) {
+    if (remaining > 0) {
+      dom.btnSummaryPrimary.textContent = 'Продолжить повторение';
+      app.summaryPrimary = () => startReview();
+    } else {
+      dom.btnSummaryPrimary.textContent = 'Перейти в Учить';
+      app.summaryPrimary = () => goToMenu();
+    }
     const errors = errorCards(availableCards(app.cards)).length;
-    dom.btnSummaryPrimary.textContent = 'Перейти в Учить';
-    app.summaryPrimary = () => goToMenu();
     dom.btnSummarySecondary.hidden = errors === 0;
     dom.btnSummarySecondary.textContent = `Отработать ошибки — ${errors}`;
     app.summarySecondary = () => startErrorsTraining();
+  } else if (session.reason === 'mixed') {
+    dom.btnSummaryPrimary.textContent = 'Ещё сессия';
+    app.summaryPrimary = () => startMixedLearn();
+    dom.btnSummarySecondary.hidden = true;
+    app.summarySecondary = null;
   } else {
     dom.btnSummaryPrimary.textContent = 'Ещё круг';
     app.summaryPrimary = () => restartSession();
@@ -1207,12 +1291,45 @@ function startLearn(cards, title, reason) {
 }
 
 function startReview() {
-  const cards = dueCards(availableCards(app.cards), new Date());
-  if (cards.length === 0) {
+  const due = dueCards(availableCards(app.cards), new Date());
+  if (due.length === 0) {
     notify('На сегодня повторений нет.', 'info');
     return;
   }
-  startSession(cards, { activity: 'review', title: 'Повторение', reason: 'due' });
+  startSession(pickSample(due, app.reviewSize), {
+    activity: 'review',
+    title: 'Повторение',
+    reason: 'due',
+    finite: true,
+  });
+}
+
+function startMixedLearn() {
+  const sample = pickSample(availableCards(app.cards), app.learnSize);
+  if (sample.length === 0) {
+    notify('Нет доступных карточек.', 'info');
+    return;
+  }
+  startSession(sample, {
+    activity: 'learn',
+    title: 'Все темы вперемешку',
+    reason: 'mixed',
+    finite: true,
+  });
+}
+
+function startMixedEndless() {
+  const pool = availableCards(app.cards);
+  if (pool.length === 0) {
+    notify('Нет доступных карточек.', 'info');
+    return;
+  }
+  startSession(pool, {
+    activity: 'learn',
+    title: 'Все темы вперемешку',
+    reason: 'mixed',
+    finite: false,
+  });
 }
 
 function startErrorsTraining() {
@@ -1864,6 +1981,8 @@ function bindEvents() {
   });
 
   dom.btnDue.addEventListener('click', startReview);
+  dom.btnMixed.addEventListener('click', startMixedLearn);
+  dom.btnMixedEndless.addEventListener('click', startMixedEndless);
 
   dom.btnNew.addEventListener('click', () => {
     const cards = newCards(availableCards(app.cards));
