@@ -2637,7 +2637,7 @@ async function checkOfflineReady() {
 
     const cache = await caches.open(name);
     const cached = (await cache.keys()).map((request) => request.url);
-    const needed = ['app.js', 'styles.css', 'data/cards.json', 'manifest.webmanifest'];
+    const needed = ['app.js', 'styles.css', 'data/cards.json', 'manifest.json'];
     if (needed.every((file) => cached.some((url) => url.endsWith(file)))) {
       dom.offlineStatus.hidden = false;
     }
