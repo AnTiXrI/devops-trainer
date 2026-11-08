@@ -2,9 +2,15 @@
 <html lang="ru" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>DevOps Trainer — карточки для повторения</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f1419">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Trainer">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 <body>
   <header class="topbar">
@@ -72,6 +78,7 @@
           <button class="btn" id="btnNew" type="button">Новые — 0</button>
           <button class="btn" id="btnErrors" type="button">Отработать ошибки — 0</button>
           <button class="btn btn--ghost" id="btnDismissErrors" type="button">Очистить список ошибок</button>
+          <button class="btn" id="btnDiscussion" type="button">На разбор — 0</button>
           <button class="btn" id="btnStats" type="button">Статистика</button>
         </div>
 
@@ -149,6 +156,7 @@
       <div class="quiz__actions">
         <button class="btn btn--primary" id="btnNext" type="button" hidden>Следующая карточка →</button>
         <button class="btn" id="btnFinish" type="button" hidden>Закончить тренировку</button>
+        <button class="btn" id="btnDiscuss" type="button">На разбор</button>
         <button class="btn" id="btnQuizToMenu" type="button">В главное меню</button>
       </div>
     </section>
@@ -186,6 +194,62 @@
 
       <div class="toolbar">
         <button class="btn" id="btnStatsBack" type="button">В главное меню</button>
+      </div>
+    </section>
+
+
+    <!-- ЭКРАН: НА РАЗБОР -->
+    <section class="screen" id="screen-discussion" hidden>
+      <div class="screen__head">
+        <h1>На разбор</h1>
+        <p class="muted" id="discussionSummary">0 отмеченных карточек</p>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn" id="btnDiscussionCopy" type="button">Скопировать для разбора</button>
+        <button class="btn" id="btnDiscussionDownload" type="button">Скачать файл для разбора</button>
+        <button class="btn btn--ghost" id="btnDiscussionBack" type="button">В главное меню</button>
+      </div>
+
+      <p class="panel__note">
+        Это личные отметки для разбора. Они не влияют на статистику, расписание и статус needs_review.
+      </p>
+
+      <ul class="discussion-list" id="discussionList"></ul>
+      <p class="empty" id="discussionEmpty" hidden>
+        Пока ничего не отмечено. Нажмите «На разбор» на карточке, чтобы вернуться к ней позже.
+      </p>
+
+      <label class="field copy-fallback" id="discussionCopyBox" hidden>
+        <span class="field__label">Скопируйте текст вручную (Ctrl+C или долгое нажатие)</span>
+        <textarea class="field__input" id="discussionCopyFallback" rows="8" readonly></textarea>
+      </label>
+    </section>
+
+    <!-- ЭКРАН: ПРОСМОТР ОТМЕЧЕННОЙ КАРТОЧКИ -->
+    <section class="screen" id="screen-discussion-view" hidden>
+      <div class="screen__head">
+        <h1 id="discussionViewTitle">Карточка на разборе</h1>
+        <p class="muted" id="discussionViewMeta"></p>
+      </div>
+
+      <article class="card">
+        <p class="card__section" id="discussionViewSection"></p>
+        <p class="card-notice" id="discussionViewWarning" hidden></p>
+        <h2 class="card__question" id="discussionViewQuestion"></h2>
+        <ul class="options" id="discussionViewOptions"></ul>
+        <div class="feedback">
+          <p class="feedback__verdict" id="discussionViewAnswer"></p>
+          <p class="feedback__explain" id="discussionViewExplain"></p>
+          <p class="feedback__meta" id="discussionViewComment"></p>
+        </div>
+      </article>
+
+      <div class="quiz__actions">
+        <button class="btn" id="btnDiscussionRefresh" type="button" hidden>Обновить снимок</button>
+        <button class="btn btn--primary" id="btnDiscussionEditFromView" type="button">Изменить комментарий</button>
+        <button class="btn btn--danger" id="btnDiscussionRemoveFromView" type="button">Убрать</button>
+        <button class="btn" id="btnDiscussionViewBack" type="button">К списку</button>
       </div>
     </section>
 
@@ -276,7 +340,34 @@
     </section>
   </main>
 
+
+  <div class="modal" id="discussionModal" hidden>
+    <div class="modal__backdrop" data-close-discussion="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="discussionModalTitle">
+      <h2 class="modal__title" id="discussionModalTitle">На разбор</h2>
+      <p class="muted" id="discussionModalQuestion"></p>
+      <label class="field">
+        <span class="field__label">Что непонятно или что хочешь разобрать?</span>
+        <textarea class="field__input" id="discussionComment" rows="4" maxlength="2000"
+          placeholder="Не понимаю термин… · Почему правильный ответ именно такой? · Чем отличается от другого варианта? · Нужен простой пример."></textarea>
+      </label>
+      <p class="muted" id="discussionHint">Комментарий можно оставить пустым и дописать позже.</p>
+      <div class="form__actions">
+        <button class="btn btn--primary" id="btnDiscussionSave" type="button">Сохранить</button>
+        <button class="btn btn--danger" id="btnDiscussionRemove" type="button">Убрать с разбора</button>
+        <button class="btn" id="btnDiscussionCancel" type="button">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="update-banner" id="updateBanner" hidden role="status">
+    <span class="update-banner__text">Доступна новая версия</span>
+    <button class="btn btn--primary" id="btnUpdateNow" type="button">Обновить</button>
+    <button class="btn btn--ghost" id="btnUpdateLater" type="button">Позже</button>
+  </div>
+
   <footer class="footer">
+    <p class="offline-status" id="offlineStatus" hidden>Готово к работе без интернета</p>
     <p class="muted">
       Локальный тренажёр. Данные читаются из <code>data/cards.json</code>, прогресс хранится в localStorage браузера.
     </p>

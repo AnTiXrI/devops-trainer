@@ -15,6 +15,7 @@ const STORAGE = {
   learning: 'trainer.learning.v1',
   mode: 'trainer.mode.v1',
   training: 'trainer.training.v1',
+  discussion: 'trainer.discussion.v1',
   reviews: 'trainer.reviews.v1',
   dismissed: 'trainer.errors-dismissed.v1',
 };
@@ -40,6 +41,10 @@ const app = {
   studyMode: 'quiz',
   learnSize: 20,
   reviewSize: 20,
+  discussion: {},
+  discussionFormCardId: null,
+  discussionViewId: null,
+  pendingUpdate: null,
   summaryPrimary: null,
   summarySecondary: null,
 };
@@ -53,6 +58,17 @@ function cacheDom() {
     'alertBox', 'menuSummary', 'sectionsList', 'menuEmpty',
     'reviewSummary', 'dueHint', 'btnDue', 'btnNew', 'btnErrors', 'btnDismissErrors', 'btnStats',
     'learnSizes', 'reviewSizes', 'btnMixed', 'btnMixedEndless',
+    'btnDiscuss', 'btnDiscussion', 'discussionSummary', 'discussionList', 'discussionEmpty',
+    'btnDiscussionCopy', 'btnDiscussionDownload', 'btnDiscussionBack',
+    'discussionCopyBox', 'discussionCopyFallback',
+    'discussionModal', 'discussionModalQuestion', 'discussionComment',
+    'btnDiscussionSave', 'btnDiscussionRemove', 'btnDiscussionCancel',
+    'screen-discussion', 'screen-discussion-view',
+    'discussionViewTitle', 'discussionViewMeta', 'discussionViewSection',
+    'discussionViewQuestion', 'discussionViewOptions', 'discussionViewAnswer',
+    'discussionViewExplain', 'discussionViewComment', 'discussionViewWarning',
+    'btnDiscussionEditFromView', 'btnDiscussionRemoveFromView', 'btnDiscussionViewBack',
+    'btnDiscussionRefresh', 'updateBanner', 'btnUpdateNow', 'btnUpdateLater', 'offlineStatus',
     'modeQuiz', 'modeRecall', 'toggleReview', 'toggleReviewLabel',
     'btnAddCard', 'btnImport', 'btnExport', 'btnBackup', 'btnRestore', 'importInput', 'backupInput',
     'quizCounter', 'quizProgress', 'quizProgressBar', 'quizMode', 'cardSection', 'cardQuestion',
@@ -376,7 +392,9 @@ function normalizeCard(raw) {
 
 async function loadBaseCards() {
   try {
-    const response = await fetch(CARDS_URL, { cache: 'no-store' });
+    // Свежесть базы обеспечивает service worker; обычный fetch нужен,
+    // чтобы карточки открывались и без активного SW (например, при первом офлайне).
+    const response = await fetch(CARDS_URL);
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const data = await response.json();
     if (!Array.isArray(data)) throw new Error('ожидался массив карточек');
@@ -389,6 +407,14 @@ async function loadBaseCards() {
     }
   } catch (err) {
     app.baseCards = [];
+    if (navigator.onLine === false) {
+      notify(
+        'Нет соединения и нет сохранённой копии приложения. Подключитесь к интернету и обновите ' +
+        'страницу — сервер отдаст карточки, и после этого приложение сохранит их для работы офлайн.',
+        'error',
+      );
+      return;
+    }
     notify(
       'Не удалось загрузить data/cards.json (' + err.message + '). ' +
       'Запустите start.ps1 или `python -m http.server` и откройте http://127.0.0.1:8000/ — ' +
@@ -458,6 +484,16 @@ function saveDismissed() {
   return writeJson(STORAGE.dismissed, app.dismissed);
 }
 
+function loadDiscussion() {
+  const raw = readJson(STORAGE.discussion, {});
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return raw;
+}
+
+function saveDiscussion() {
+  return writeJson(STORAGE.discussion, app.discussion);
+}
+
 function rebuildCards() {
   const seen = new Set();
   const merged = [];
@@ -511,7 +547,7 @@ function initTheme() {
 /* ---------- экраны и уведомления ---------- */
 
 function showScreen(name) {
-  ['menu', 'quiz', 'summary', 'stats', 'add'].forEach((screenName) => {
+  ['menu', 'quiz', 'summary', 'stats', 'add', 'discussion', 'discussion-view'].forEach((screenName) => {
     dom[`screen-${screenName}`].hidden = screenName !== name;
   });
   hideNotice();
@@ -526,6 +562,362 @@ function notify(message, kind = 'info') {
 function hideNotice() {
   dom.alertBox.hidden = true;
   dom.alertBox.textContent = '';
+}
+
+/* ---------- «На разбор» ----------
+   Личные отметки. Отдельный ключ, отдельно от истории и расписания:
+   добавление отметки не считается учебной попыткой. */
+
+const DISCUSSION_COMMENT_LIMIT = 2000;
+
+function makeSnapshot(card) {
+  const snapshot = {
+    question: card.question,
+    options: card.options.slice(),
+    correct_index: card.correct_index,
+    explanation: card.explanation,
+    section: card.section,
+    topic: card.topic,
+  };
+  if (Array.isArray(card.sources) && card.sources.length) {
+    snapshot.sources = card.sources.slice();
+  }
+  return snapshot;
+}
+
+function discussionEntry(cardId) {
+  return app.discussion[cardId] || null;
+}
+
+function snapshotDiffers(entry, card) {
+  if (!entry || !card) return true;
+  const s = entry.snapshot;
+  return s.question !== card.question
+    || s.explanation !== card.explanation
+    || s.correct_index !== card.correct_index
+    || s.section !== card.section
+    || s.topic !== card.topic
+    || JSON.stringify(s.options) !== JSON.stringify(card.options);
+}
+
+function saveDiscussionFromForm() {
+  const cardId = app.discussionFormCardId;
+  if (!cardId) return;
+
+  const card = app.cards.find((item) => item.id === cardId);
+  const existing = discussionEntry(cardId);
+  const comment = dom.discussionComment.value.trim().slice(0, DISCUSSION_COMMENT_LIMIT);
+
+  if (!existing && !card) {
+    notify('Карточки нет в актуальной базе — сохранить снимок не из чего.', 'error');
+    return;
+  }
+
+  const now = new Date().toISOString();
+  app.discussion[cardId] = {
+    cardId,
+    comment,
+    createdAt: existing ? existing.createdAt : now,
+    updatedAt: now,
+    snapshot: existing ? existing.snapshot : makeSnapshot(card),
+  };
+
+  if (!saveDiscussion()) {
+    if (existing) app.discussion[cardId] = existing;
+    else delete app.discussion[cardId];
+    notify('Не удалось сохранить отметку в браузере.', 'error');
+    return;
+  }
+
+  closeDiscussionForm();
+  updateDiscussButton(cardId);
+  if (app.discussionViewId === cardId) openDiscussionView(cardId);
+  renderMenu();
+  notify(existing ? 'Комментарий обновлён.' : 'Карточка добавлена на разбор.', 'success');
+}
+
+function removeDiscussionById(cardId, options) {
+  const existing = discussionEntry(cardId);
+  if (!existing) return;
+
+  if (!options || !options.silent) {
+    const ok = window.confirm('Убрать карточку из списка «На разбор»? Комментарий будет удалён.');
+    if (!ok) return;
+  }
+
+  delete app.discussion[cardId];
+  if (!saveDiscussion()) {
+    app.discussion[cardId] = existing;
+    notify('Не удалось сохранить изменение в браузере.', 'error');
+    return;
+  }
+
+  updateDiscussButton(cardId);
+  renderDiscussion();
+  renderMenu();
+  notify('Карточка убрана с разбора.', 'success');
+}
+
+function updateDiscussButton(cardId) {
+  if (!dom.btnDiscuss) return;
+  const marked = Boolean(discussionEntry(cardId));
+  dom.btnDiscuss.textContent = marked ? 'На разборе' : 'На разбор';
+  dom.btnDiscuss.classList.toggle('btn--primary', marked);
+}
+
+function openDiscussionForm(cardId) {
+  const card = app.cards.find((item) => item.id === cardId);
+  const entry = discussionEntry(cardId);
+  if (!card && !entry) return;
+
+  app.discussionFormCardId = cardId;
+  dom.discussionModalQuestion.textContent = card ? card.question : (entry.snapshot.question || '');
+  dom.discussionComment.value = entry ? entry.comment : '';
+  dom.btnDiscussionRemove.hidden = !entry;
+  dom.discussionModal.hidden = false;
+
+  // не даём клавиатуре утащить страницу
+  try {
+    dom.discussionComment.focus({ preventScroll: true });
+  } catch (err) {
+    dom.discussionComment.focus();
+  }
+}
+
+function closeDiscussionForm() {
+  dom.discussionModal.hidden = true;
+  app.discussionFormCardId = null;
+  dom.discussionComment.value = '';
+}
+
+function discussionEntries() {
+  return Object.values(app.discussion)
+    .filter((entry) => entry && entry.cardId)
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+}
+
+function renderDiscussion() {
+  const entries = discussionEntries();
+  dom.discussionSummary.textContent = entries.length
+    ? `Отмечено карточек: ${entries.length}`
+    : 'Список пуст';
+
+  dom.btnDiscussionCopy.disabled = entries.length === 0;
+  dom.btnDiscussionDownload.disabled = entries.length === 0;
+
+  dom.discussionList.textContent = '';
+  dom.discussionEmpty.hidden = entries.length > 0;
+
+  entries.forEach((entry) => {
+    const card = app.cards.find((item) => item.id === entry.cardId);
+    const snapshot = entry.snapshot || {};
+
+    const item = document.createElement('li');
+    item.className = 'discussion-item';
+
+    const section = document.createElement('p');
+    section.className = 'discussion-item__section';
+    section.textContent = [snapshot.section, snapshot.topic].filter(Boolean).join(' · ') || 'Без раздела';
+
+    const question = document.createElement('p');
+    question.className = 'discussion-item__question';
+    question.textContent = snapshot.question || 'Снимок карточки отсутствует';
+
+    const comment = document.createElement('p');
+    comment.className = 'discussion-item__comment' + (entry.comment ? '' : ' discussion-item__comment--empty');
+    comment.textContent = entry.comment || 'Без комментария';
+
+    item.append(section, question, comment);
+
+    if (!card) {
+      const warning = document.createElement('p');
+      warning.className = 'discussion-item__warning';
+      warning.textContent = 'Карточки больше нет в актуальной базе — показан сохранённый снимок.';
+      item.appendChild(warning);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'discussion-item__actions';
+
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'btn btn--primary';
+    openBtn.textContent = 'Открыть';
+    openBtn.dataset.action = 'open';
+    openBtn.dataset.card = entry.cardId;
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn';
+    editBtn.textContent = 'Изменить комментарий';
+    editBtn.dataset.action = 'edit';
+    editBtn.dataset.card = entry.cardId;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn--danger';
+    removeBtn.textContent = 'Убрать';
+    removeBtn.dataset.action = 'remove';
+    removeBtn.dataset.card = entry.cardId;
+
+    actions.append(openBtn, editBtn, removeBtn);
+    item.appendChild(actions);
+    dom.discussionList.appendChild(item);
+  });
+}
+
+function openDiscussionView(cardId) {
+  const entry = discussionEntry(cardId);
+  if (!entry) {
+    renderDiscussion();
+    showScreen('discussion');
+    return;
+  }
+
+  const card = app.cards.find((item) => item.id === cardId);
+  const snapshot = entry.snapshot;
+  app.discussionViewId = cardId;
+
+  dom.discussionViewTitle.textContent = 'Карточка на разборе';
+  dom.discussionViewMeta.textContent = [snapshot.section, snapshot.topic].filter(Boolean).join(' · ');
+  dom.discussionViewSection.textContent = snapshot.section || '';
+  dom.discussionViewQuestion.textContent = snapshot.question;
+
+  dom.discussionViewOptions.textContent = '';
+  snapshot.options.forEach((text, index) => {
+    const li = document.createElement('li');
+    const row = document.createElement('div');
+    row.className = 'option' + (index === snapshot.correct_index ? ' is-correct' : '');
+
+    const key = document.createElement('span');
+    key.className = 'option__key';
+    key.textContent = String(index + 1);
+
+    const label = document.createElement('span');
+    label.className = 'option__text';
+    label.textContent = text;
+
+    row.append(key, label);
+    li.appendChild(row);
+    dom.discussionViewOptions.appendChild(li);
+  });
+
+  dom.discussionViewAnswer.textContent = `Правильный ответ: ${snapshot.options[snapshot.correct_index]}`;
+  dom.discussionViewExplain.textContent = snapshot.explanation;
+  dom.discussionViewComment.textContent = 'Мой комментарий: ' + (entry.comment || '—');
+
+  const missing = !card;
+  const changed = !missing && snapshotDiffers(entry, card);
+  dom.discussionViewWarning.hidden = !(missing || changed);
+  if (missing) {
+    dom.discussionViewWarning.textContent = 'Карточки больше нет в актуальной базе — показан сохранённый снимок.';
+  } else if (changed) {
+    dom.discussionViewWarning.textContent = 'Карточка в базе изменилась — показан сохранённый снимок. Можно обновить его вручную.';
+  }
+  dom.btnDiscussionRefresh.hidden = !changed;
+
+  showScreen('discussion-view');
+  window.scrollTo({ top: 0 });
+}
+
+function refreshDiscussionSnapshot() {
+  const cardId = app.discussionViewId;
+  const card = app.cards.find((item) => item.id === cardId);
+  const entry = discussionEntry(cardId);
+  if (!card || !entry) return;
+
+  const ok = window.confirm('Обновить сохранённый снимок карточки? Комментарий останется прежним.');
+  if (!ok) return;
+
+  entry.snapshot = makeSnapshot(card);
+  entry.updatedAt = new Date().toISOString();
+  if (!saveDiscussion()) {
+    notify('Не удалось сохранить обновление снимка.', 'error');
+    return;
+  }
+  openDiscussionView(cardId);
+  renderDiscussion();
+  notify('Снимок карточки обновлён.', 'success');
+}
+
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function buildDiscussionMarkdown() {
+  const entries = discussionEntries();
+  const lines = [
+    '# Разбор отмеченных карточек',
+    '',
+    'Помоги разобрать отмеченные вопросы.',
+    'Для каждого сначала ответь на мой комментарий простым языком,',
+    'затем приведи пример. Если проблема в самой карточке —',
+    'отдельно предложи исправление.',
+    'Не считай содержание карточки автоматически достоверным.',
+    '',
+  ];
+
+  entries.forEach((entry, index) => {
+    const s = entry.snapshot || {};
+    lines.push(`## ${index + 1}. ${s.section || 'Без раздела'} — ${s.topic || 'Без темы'}`);
+    lines.push('');
+    lines.push(`- id: ${entry.cardId}`);
+    lines.push(`- раздел: ${s.section || '—'}`);
+    lines.push(`- тема: ${s.topic || '—'}`);
+    lines.push(`- вопрос: ${s.question || '—'}`);
+    lines.push('- варианты:');
+    (s.options || []).forEach((option, i) => {
+      lines.push(`  ${i + 1}. ${option}`);
+    });
+    const correctNumber = Number.isInteger(s.correct_index) ? s.correct_index + 1 : '—';
+    const correctText = s.options && Number.isInteger(s.correct_index) ? s.options[s.correct_index] : '—';
+    lines.push(`- правильный ответ: №${correctNumber} — ${correctText}`);
+    lines.push(`- объяснение: ${s.explanation || '—'}`);
+    lines.push(`- мой комментарий: ${entry.comment || '—'}`);
+    if (Array.isArray(s.sources) && s.sources.length) {
+      lines.push(`- источники: ${s.sources.join(', ')}`);
+    }
+    lines.push(`- снимок сохранён: ${formatDateTime(entry.createdAt)}`);
+    lines.push('');
+  });
+
+  return lines.join('\n');
+}
+
+async function copyDiscussion() {
+  const text = buildDiscussionMarkdown();
+  dom.discussionCopyBox.hidden = true;
+
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      throw new Error('Clipboard API недоступен');
+    }
+    await navigator.clipboard.writeText(text);
+    notify('Текст для разбора скопирован в буфер обмена.', 'success');
+  } catch (err) {
+    dom.discussionCopyFallback.value = text;
+    dom.discussionCopyBox.hidden = false;
+    dom.discussionCopyFallback.focus();
+    dom.discussionCopyFallback.select();
+    notify('Скопировать автоматически не удалось — текст ниже можно скопировать вручную.', 'error');
+  }
+}
+
+function downloadDiscussion() {
+  const text = buildDiscussionMarkdown();
+  const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `razbor-${new Date().toISOString().slice(0, 10)}.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notify('Файл для разбора сформирован. Отметки в списке сохранились.', 'success');
 }
 
 /* ---------- размер сессии ---------- */
@@ -606,6 +998,9 @@ function renderMenu() {
 
   dom.modeQuiz.setAttribute('aria-pressed', String(app.studyMode === 'quiz'));
   dom.modeRecall.setAttribute('aria-pressed', String(app.studyMode === 'recall'));
+
+  const discussionCount = discussionEntries().length;
+  dom.btnDiscussion.textContent = `На разбор — ${discussionCount}`;
 
   dom.btnNew.textContent = `Новые — ${fresh.length}`;
   dom.btnNew.disabled = fresh.length === 0;
@@ -970,6 +1365,7 @@ function renderQuestion() {
   dom.feedbackMeta.textContent = '';
   dom.btnNext.hidden = true;
   dom.btnFinish.hidden = session.activity !== 'learn';
+  updateDiscussButton(card.id);
 }
 
 /* position — позиция на экране, проверка идёт по исходному индексу варианта. */
@@ -1583,8 +1979,8 @@ async function handleImportFile(file) {
     added > 0 ? 'success' : 'error');
 }
 
-const BACKUP_SCHEMA_VERSION = 3;
-const SUPPORTED_BACKUP_VERSIONS = [1, 2, 3];
+const BACKUP_SCHEMA_VERSION = 4;
+const SUPPORTED_BACKUP_VERSIONS = [1, 2, 3, 4];
 
 function downloadJson(payload, filename) {
   const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
@@ -1634,6 +2030,7 @@ function buildBackup() {
     'trainer.training.v1': app.training,
     'trainer.reviews.v1': app.reviews,
     'trainer.errors-dismissed.v1': app.dismissed,
+    'trainer.discussion.v1': app.discussion,
   };
 }
 
@@ -1754,6 +2151,62 @@ function validateReviewsBackup(data, version) {
   return { ok: true, reviews, hasReviews: true };
 }
 
+function validateDiscussionBackup(data, version) {
+  if (version < 4) {
+    return { ok: true, discussion: {}, hasDiscussion: false };
+  }
+
+  const discussion = data['trainer.discussion.v1'];
+  if (!discussion || typeof discussion !== 'object' || Array.isArray(discussion)) {
+    return { ok: false, error: 'нет объекта trainer.discussion.v1' };
+  }
+
+  for (const [key, entry] of Object.entries(discussion)) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { ok: false, error: `запись «На разбор» ${key} повреждена` };
+    }
+    if (entry.cardId !== key || typeof entry.cardId !== 'string') {
+      return { ok: false, error: `в записи ${key} cardId не совпадает с ключом` };
+    }
+    if (typeof entry.comment !== 'string' || entry.comment.length > DISCUSSION_COMMENT_LIMIT) {
+      return { ok: false, error: `у записи ${key} некорректный комментарий` };
+    }
+    for (const field of ['createdAt', 'updatedAt']) {
+      if (typeof entry[field] !== 'string' || Number.isNaN(Date.parse(entry[field]))) {
+        return { ok: false, error: `у записи ${key} некорректная дата ${field}` };
+      }
+    }
+    const snapshot = entry.snapshot;
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+      return { ok: false, error: `у записи ${key} нет снимка карточки` };
+    }
+    if (typeof snapshot.question !== 'string' || !snapshot.question.trim()) {
+      return { ok: false, error: `у записи ${key} пустой вопрос в снимке` };
+    }
+    if (!Array.isArray(snapshot.options)
+      || snapshot.options.length < 2
+      || snapshot.options.length > 8
+      || !snapshot.options.every((option) => typeof option === 'string')) {
+      return { ok: false, error: `у записи ${key} некорректные варианты в снимке` };
+    }
+    if (!Number.isInteger(snapshot.correct_index)
+      || snapshot.correct_index < 0
+      || snapshot.correct_index >= snapshot.options.length) {
+      return { ok: false, error: `у записи ${key} correct_index не соответствует вариантам` };
+    }
+    if (typeof snapshot.explanation !== 'string') {
+      return { ok: false, error: `у записи ${key} нет объяснения в снимке` };
+    }
+    if (snapshot.sources !== undefined
+      && (!Array.isArray(snapshot.sources)
+        || !snapshot.sources.every((url) => typeof url === 'string' && url.startsWith('https://')))) {
+      return { ok: false, error: `у записи ${key} некорректные sources` };
+    }
+  }
+
+  return { ok: true, discussion, hasDiscussion: true };
+}
+
 function validateDismissedBackup(data, version) {
   if (version < 3) {
     return { ok: true, dismissed: {}, hasDismissed: false };
@@ -1830,6 +2283,9 @@ function validateBackup(data) {
   const dismissedResult = validateDismissedBackup(data, data.schemaVersion);
   if (!dismissedResult.ok) return dismissedResult;
 
+  const discussionResult = validateDiscussionBackup(data, data.schemaVersion);
+  if (!discussionResult.ok) return discussionResult;
+
   return {
     ok: true,
     schemaVersion: data.schemaVersion,
@@ -1843,6 +2299,8 @@ function validateBackup(data) {
     hasReviews: reviewsResult.hasReviews,
     dismissed: dismissedResult.dismissed,
     hasDismissed: dismissedResult.hasDismissed,
+    discussion: discussionResult.discussion,
+    hasDiscussion: discussionResult.hasDiscussion,
     theme: data.theme,
     exportedAt: data.exportedAt,
   };
@@ -1850,6 +2308,11 @@ function validateBackup(data) {
 
 async function restoreBackup(file) {
   if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    notify('Файл больше 5 МБ — такой размер резервной копии не поддерживается.', 'error');
+    return;
+  }
 
   let data;
   try {
@@ -1874,6 +2337,7 @@ async function restoreBackup(file) {
     `Повторения: было ${Object.keys(app.reviews).length} → станет ${Object.keys(result.reviews).length}`,
     `Расписание: было ${Object.keys(app.learning).length} → станет ${Object.keys(result.learning).length}`,
     `Список ошибок (скрытые): было ${Object.keys(app.dismissed).length} → станет ${Object.keys(result.dismissed).length}`,
+    `Список «На разбор»: было ${Object.keys(app.discussion).length} → станет ${Object.keys(result.discussion).length}`,
     `Свои карточки: было ${app.customCards.length} → станет ${result.custom.length}`,
     `Тема: ${themeName(currentTheme())} → ${themeName(result.theme)}`,
     `Версия схемы копии: ${result.schemaVersion}`,
@@ -1885,6 +2349,7 @@ async function restoreBackup(file) {
   if (!result.hasTraining) missing.push('тренировочная статистика');
   if (!result.hasReviews) missing.push('результаты повторений');
   if (!result.hasDismissed) missing.push('список ошибок');
+  if (!result.hasDiscussion) missing.push('список «На разбор»');
   if (!result.hasLearning) missing.push('расписание');
 
   if (missing.length) {
@@ -1895,6 +2360,7 @@ async function restoreBackup(file) {
     if (!result.hasTraining) lines.push('• тренировочная статистика пустая;');
     if (!result.hasReviews) lines.push('• результаты повторений пустые;');
     if (!result.hasDismissed) lines.push('• скрытых ошибок нет.');
+    if (!result.hasDiscussion) lines.push('• список «На разбор» будет пустым.');
   }
 
   const wantCopy = window.confirm(
@@ -1914,6 +2380,7 @@ async function restoreBackup(file) {
   app.training = result.training;
   app.reviews = result.reviews;
   app.dismissed = result.dismissed;
+  app.discussion = result.discussion;
 
   const saved = {
     'старая история': saveProgress(),
@@ -1922,6 +2389,7 @@ async function restoreBackup(file) {
     'тренировка': saveTraining(),
     'повторения': saveReviews(),
     'список ошибок': saveDismissed(),
+    'список «На разбор»': saveDiscussion(),
   };
 
   applyTheme(result.theme);
@@ -1948,6 +2416,7 @@ async function restoreBackup(file) {
     `Восстановлено: тренировка ${Object.keys(result.training).length}, ` +
     `повторения ${Object.keys(result.reviews).length}, ` +
     `расписание ${Object.keys(result.learning).length}, ` +
+    `на разбор ${Object.keys(result.discussion).length}, ` +
     `своих карточек ${result.custom.length}.`,
     'success',
   );
@@ -2067,6 +2536,71 @@ function bindEvents() {
   });
   dom.btnSummaryMenu.addEventListener('click', goToMenu);
 
+  dom.btnUpdateNow.addEventListener('click', applyUpdate);
+  dom.btnUpdateLater.addEventListener('click', () => {
+    dom.updateBanner.hidden = true;
+  });
+
+  dom.btnDiscuss.addEventListener('click', () => {
+    const session = app.session;
+    if (!session) return;
+    openDiscussionForm(session.cards[session.index].id);
+  });
+
+  dom.btnDiscussion.addEventListener('click', () => {
+    renderDiscussion();
+    showScreen('discussion');
+    window.scrollTo({ top: 0 });
+  });
+  dom.btnDiscussionBack.addEventListener('click', goToMenu);
+
+  dom.discussionList.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const cardId = button.dataset.card;
+    if (button.dataset.action === 'open') openDiscussionView(cardId);
+    else if (button.dataset.action === 'edit') openDiscussionForm(cardId);
+    else if (button.dataset.action === 'remove') removeDiscussionById(cardId);
+  });
+
+  dom.btnDiscussionSave.addEventListener('click', saveDiscussionFromForm);
+  dom.btnDiscussionCancel.addEventListener('click', closeDiscussionForm);
+  dom.btnDiscussionRemove.addEventListener('click', () => {
+    const cardId = app.discussionFormCardId;
+    closeDiscussionForm();
+    if (cardId) removeDiscussionById(cardId);
+  });
+  dom.discussionModal.addEventListener('click', (event) => {
+    if (event.target && event.target.dataset && event.target.dataset.closeDiscussion) {
+      closeDiscussionForm();
+    }
+  });
+
+  dom.btnDiscussionEditFromView.addEventListener('click', () => {
+    if (app.discussionViewId) openDiscussionForm(app.discussionViewId);
+  });
+  dom.btnDiscussionRemoveFromView.addEventListener('click', () => {
+    const cardId = app.discussionViewId;
+    if (!cardId) return;
+    if (!window.confirm('Убрать карточку из списка «На разбор»?')) return;
+    removeDiscussionById(cardId, { silent: true });
+    app.discussionViewId = null;
+    renderDiscussion();
+    showScreen('discussion');
+  });
+  dom.btnDiscussionViewBack.addEventListener('click', () => {
+    renderDiscussion();
+    showScreen('discussion');
+    window.scrollTo({ top: 0 });
+  });
+  dom.btnDiscussionRefresh.addEventListener('click', refreshDiscussionSnapshot);
+  dom.btnDiscussionCopy.addEventListener('click', copyDiscussion);
+  dom.btnDiscussionDownload.addEventListener('click', downloadDiscussion);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !dom.discussionModal.hidden) closeDiscussionForm();
+  });
+
   document.addEventListener('keydown', (event) => {
     if (dom['screen-quiz'].hidden) return;
     if (event.target instanceof HTMLElement && event.target.matches('input, textarea, select')) return;
@@ -2089,6 +2623,75 @@ function bindEvents() {
   });
 }
 
+/* ---------- PWA: офлайн-кеш и обновления ---------- */
+
+let swRegistration = null;
+let reloadingForUpdate = false;
+
+async function checkOfflineReady() {
+  if (!('caches' in window)) return;
+  try {
+    const names = await caches.keys();
+    const name = names.find((item) => item.startsWith('devops-trainer-'));
+    if (!name) return;
+
+    const cache = await caches.open(name);
+    const cached = (await cache.keys()).map((request) => request.url);
+    const needed = ['app.js', 'styles.css', 'data/cards.json', 'manifest.webmanifest'];
+    if (needed.every((file) => cached.some((url) => url.endsWith(file)))) {
+      dom.offlineStatus.hidden = false;
+    }
+  } catch (err) {
+    console.warn('Не удалось проверить офлайн-кеш', err);
+  }
+}
+
+async function initServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'READY') checkOfflineReady();
+  });
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloadingForUpdate) return;
+    reloadingForUpdate = true;
+    window.location.reload();
+  });
+
+  try {
+    swRegistration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+
+    if (swRegistration.waiting && navigator.serviceWorker.controller) {
+      dom.updateBanner.hidden = false;
+    }
+
+    swRegistration.addEventListener('updatefound', () => {
+      const installing = swRegistration.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+          dom.updateBanner.hidden = false;
+        }
+      });
+    });
+
+    await checkOfflineReady();
+  } catch (err) {
+    console.warn('Service worker не зарегистрирован', err);
+  }
+}
+
+function applyUpdate() {
+  dom.updateBanner.hidden = true;
+  const waiting = swRegistration && swRegistration.waiting;
+  if (waiting) {
+    waiting.postMessage({ type: 'SKIP_WAITING' });
+    return;
+  }
+  window.location.reload();
+}
+
 /* ---------- запуск ---------- */
 
 async function init() {
@@ -2104,6 +2707,7 @@ async function init() {
   app.training = loadTraining();
   app.reviews = loadReviews();
   app.dismissed = loadDismissed();
+  app.discussion = loadDiscussion();
   app.studyMode = loadMode();
 
   await loadBaseCards();
@@ -2114,6 +2718,8 @@ async function init() {
   if (app.cards.length === 0) {
     dom.menuSummary.textContent = 'Карточек нет';
   }
+
+  initServiceWorker();
 }
 
 document.addEventListener('DOMContentLoaded', init);
